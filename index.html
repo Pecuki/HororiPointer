@@ -88,6 +88,18 @@
           );
         }
       }
+
+       const watermarkText = "made using www.hororipointer.xyz";
+const scale = canvas.width / 700; // adjust 700 to match your base size
+const fontSize = 16 * scale; // scale text with canvas
+ctx.font = `${fontSize}px sans-serif`;
+ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; // more transparent
+const textWidth = ctx.measureText(watermarkText).width;
+ctx.fillText(
+  watermarkText,
+  canvas.width - textWidth - 10 * scale,
+  canvas.height - 10 * scale
+);
     }
 
     function isOnSticker(x, y) {
