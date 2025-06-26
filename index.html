@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -28,7 +27,6 @@
     let sticker = new Image();
     sticker.src = "sticker.png";
 
-    // Initial sticker position and size
     let stickerX = 100, stickerY = 100, stickerW = 100, stickerH = 100;
     let dragging = false, resizing = false;
     const resizeHandleSize = 10;
@@ -44,25 +42,30 @@
         img.onload = () => {
           backgroundImage = img;
 
-          // Resize canvas to match image dimensions
+          // Resize canvas to match uploaded image
           canvas.width = img.naturalWidth;
           canvas.height = img.naturalHeight;
 
-          // Reset sticker position and size (optional: adjust if needed)
-          stickerX = canvas.width / 4;
-          stickerY = canvas.height / 4;
-
-          // Maintain original sticker aspect ratio on initial load
-          const stickerAspect = sticker.naturalWidth / sticker.naturalHeight;
-          stickerW = 100;
-          stickerH = stickerW / stickerAspect;
-
-          draw();
+          // Wait for sticker to be ready before placing it
+          if (sticker.complete) {
+            initializeSticker();
+          } else {
+            sticker.onload = initializeSticker;
+          }
         };
         img.src = event.target.result;
       };
       reader.readAsDataURL(file);
     });
+
+    function initializeSticker() {
+      const aspect = sticker.naturalWidth / sticker.naturalHeight;
+      stickerW = 100;
+      stickerH = stickerW / aspect;
+      stickerX = canvas.width / 4;
+      stickerY = canvas.height / 4;
+      draw();
+    }
 
     function draw(hideHandle = false) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -81,6 +84,18 @@
           );
         }
       }
+    }
+
+    function isOnSticker(x, y) {
+      return x >= stickerX && x <= stickerX + stickerW &&
+             y >= stickerY && y <= stickerY + stickerH;
+    }
+
+    function isOnResizeHandle(x, y) {
+      return x >= stickerX + stickerW - resizeHandleSize &&
+             x <= stickerX + stickerW &&
+             y >= stickerY + stickerH - resizeHandleSize &&
+             y <= stickerY + stickerH;
     }
 
     canvas.addEventListener("mousedown", (e) => {
@@ -125,34 +140,20 @@
       resizing = false;
     });
 
-    function isOnSticker(x, y) {
-      return x >= stickerX && x <= stickerX + stickerW &&
-             y >= stickerY && y <= stickerY + stickerH;
-    }
-
-    function isOnResizeHandle(x, y) {
-      return x >= stickerX + stickerW - resizeHandleSize &&
-             x <= stickerX + stickerW &&
-             y >= stickerY + stickerH - resizeHandleSize &&
-             y <= stickerY + stickerH;
-    }
-
     saveBtn.addEventListener("click", () => {
       if (!backgroundImage) {
         alert("Please upload an image first.");
         return;
       }
-      draw(true); // hide resize handle on save
+      draw(true); // hide red square
       const link = document.createElement("a");
       link.download = "composite.png";
       link.href = canvas.toDataURL("image/png");
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      draw(); // redraw with handle for continued editing
+      draw(); // redraw with red handle after save
     });
-
-    sticker.onload = draw;
   </script>
 </body>
 </html>
