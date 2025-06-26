@@ -27,7 +27,7 @@
     let backgroundImage = null;
     let sticker = new Image();
     sticker.src = "sticker.png";
-
+    sticker.onerror = () => alert("Sticker image failed to load. Check the file path or name.");
     let stickerX = 100, stickerY = 100, stickerW = 100, stickerH = 100;
     let dragging = false, resizing = false;
     const resizeHandleSize = 10;
