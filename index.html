@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>HororiPointer</title>
+  <title>Sticker Overlay Editor</title>
   <style>
     body { font-family: sans-serif; text-align: center; margin-top: 20px; }
-    canvas { border: 1px solid #ccc; cursor: crosshair; }
+    canvas { border: 1px solid #ccc; cursor: crosshair; display: block; margin: 0 auto; }
     #controls { margin-bottom: 10px; }
     input[type="file"] { margin-bottom: 10px; }
     button { margin: 10px; padding: 10px 20px; font-size: 16px; }
@@ -13,10 +13,10 @@
 </head>
 <body>
   <div id="controls">
-    <input type="file" id="imageUpload" accept="image/*">
+    <input type="file" id="imageUpload" accept="image/*" />
     <button id="saveBtn">Save Image</button>
   </div>
-  <canvas id="canvas" width="800" height="600"></canvas>
+  <canvas id="canvas"></canvas>
 
   <script>
     const canvas = document.getElementById("canvas");
@@ -27,7 +27,8 @@
     let backgroundImage = null;
     let sticker = new Image();
     sticker.src = "sticker.png";
-    sticker.onerror = () => alert("Sticker image failed to load. Check the file path or name.");
+
+    // Initial sticker position and size
     let stickerX = 100, stickerY = 100, stickerW = 100, stickerH = 100;
     let dragging = false, resizing = false;
     const resizeHandleSize = 10;
@@ -36,11 +37,26 @@
     imageUpload.addEventListener("change", (e) => {
       const file = e.target.files[0];
       if (!file) return;
+
       const reader = new FileReader();
       reader.onload = (event) => {
         const img = new Image();
         img.onload = () => {
           backgroundImage = img;
+
+          // Resize canvas to match image dimensions
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+
+          // Reset sticker position and size (optional: adjust if needed)
+          stickerX = canvas.width / 4;
+          stickerY = canvas.height / 4;
+
+          // Maintain original sticker aspect ratio on initial load
+          const stickerAspect = sticker.naturalWidth / sticker.naturalHeight;
+          stickerW = 100;
+          stickerH = stickerW / stickerAspect;
+
           draw();
         };
         img.src = event.target.result;
@@ -48,21 +64,22 @@
       reader.readAsDataURL(file);
     });
 
-    function draw() {
+    function draw(hideHandle = false) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       if (backgroundImage) {
         ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
       }
       if (sticker.complete) {
         ctx.drawImage(sticker, stickerX, stickerY, stickerW, stickerH);
-        // Draw resize handle
-        ctx.fillStyle = "red";
-        ctx.fillRect(
-          stickerX + stickerW - resizeHandleSize,
-          stickerY + stickerH - resizeHandleSize,
-          resizeHandleSize,
-          resizeHandleSize
-        );
+        if (!hideHandle) {
+          ctx.fillStyle = "red";
+          ctx.fillRect(
+            stickerX + stickerW - resizeHandleSize,
+            stickerY + stickerH - resizeHandleSize,
+            resizeHandleSize,
+            resizeHandleSize
+          );
+        }
       }
     }
 
@@ -121,13 +138,20 @@
     }
 
     saveBtn.addEventListener("click", () => {
-      const link = document.createElement('a');
-      link.download = 'IPointed.png';
-      link.href = canvas.toDataURL();
+      if (!backgroundImage) {
+        alert("Please upload an image first.");
+        return;
+      }
+      draw(true); // hide resize handle on save
+      const link = document.createElement("a");
+      link.download = "composite.png";
+      link.href = canvas.toDataURL("image/png");
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
+      draw(); // redraw with handle for continued editing
     });
 
-    // Initial draw when sticker loads
     sticker.onload = draw;
   </script>
 </body>
