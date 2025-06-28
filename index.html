@@ -1,10 +1,11 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <title>Hori Pointer</title>
   <style>
     body { font-family: sans-serif; text-align: center; margin-top: 20px; }
-    canvas { border: 1px solid #ccc; cursor: crosshair; display: block; margin: 0 auto; }
+    canvas { border: 1px solid #ccc; cursor: crosshair; display: block; margin: 0 auto; max-width: 100%; height: auto; }
     #controls { margin-bottom: 10px; }
     input[type="file"] { margin-bottom: 10px; }
     button { margin: 10px; padding: 10px 20px; font-size: 16px; }
@@ -33,8 +34,10 @@
 
     let stickerX = 100, stickerY = 100, stickerW = 100, stickerH = 100;
     let dragging = false, resizing = false;
-    const resizeHandleSize = 10;
+    const resizeHandleSize = 20;
     let dragOffsetX = 0, dragOffsetY = 0;
+
+    let displayRatio = 1; // for high-DPI and responsive scaling
 
     imageUpload.addEventListener("change", (e) => {
       const file = e.target.files[0];
@@ -46,131 +49,122 @@
         img.onload = () => {
           backgroundImage = img;
 
-          // Resize canvas to match uploaded image
-          canvas.width = img.naturalWidth;
-          canvas.height = img.naturalHeight;
+          // Constrain canvas size to fit screen
+          const maxDim = 800;
+          const scale = Math.min(maxDim / img.naturalWidth, maxDim / img.naturalHeight, 1);
+          canvas.width = img.naturalWidth * scale;
+          canvas.height = img.naturalHeight * scale;
+          displayRatio = scale;
 
-          // Wait for sticker to be ready before placing it
-          if (sticker.complete) {
-            initializeSticker();
-          } else {
-            sticker.onload = initializeSticker;
-          }
+          // Position sticker
+          const aspect = sticker.naturalWidth / sticker.naturalHeight;
+          stickerW = 100 * scale;
+          stickerH = stickerW / aspect;
+          stickerX = canvas.width / 4;
+          stickerY = canvas.height / 4;
+
+          draw();
         };
         img.src = event.target.result;
       };
       reader.readAsDataURL(file);
     });
 
-    function initializeSticker() {
-      const aspect = sticker.naturalWidth / sticker.naturalHeight;
-      stickerW = 100;
-      stickerH = stickerW / aspect;
-      stickerX = canvas.width / 4;
-      stickerY = canvas.height / 4;
-      draw();
-    }
-
     function draw(hideHandle = false) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (backgroundImage) {
-        ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
-      }
+      if (backgroundImage) ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
       if (sticker.complete) {
         ctx.drawImage(sticker, stickerX, stickerY, stickerW, stickerH);
         if (!hideHandle) {
           ctx.fillStyle = "red";
-          ctx.fillRect(
-            stickerX + stickerW - resizeHandleSize,
-            stickerY + stickerH - resizeHandleSize,
-            resizeHandleSize,
-            resizeHandleSize
-          );
+          ctx.fillRect(stickerX + stickerW - resizeHandleSize, stickerY + stickerH - resizeHandleSize, resizeHandleSize, resizeHandleSize);
         }
       }
 
-       const watermarkText = "made using www.hororipointer.xyz";
-const scale = canvas.width / 700; // adjust 700 to match your base size
-const fontSize = 16 * scale; // scale text with canvas
-ctx.font = `${fontSize}px sans-serif`;
-ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; // more transparent
-const textWidth = ctx.measureText(watermarkText).width;
-ctx.fillText(
-  watermarkText,
-  canvas.width - textWidth - 10 * scale,
-  canvas.height - 10 * scale
-);
+      // Watermark
+      const watermarkText = "made using www.hororipointer.xyz";
+      const scale = canvas.width / 700;
+      const fontSize = 16 * scale;
+      ctx.font = `${fontSize}px sans-serif`;
+      ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+      ctx.fillText(watermarkText, 10 * scale, canvas.height - 10 * scale);
     }
 
     function isOnSticker(x, y) {
-      return x >= stickerX && x <= stickerX + stickerW &&
-             y >= stickerY && y <= stickerY + stickerH;
+      return x >= stickerX && x <= stickerX + stickerW && y >= stickerY && y <= stickerY + stickerH;
     }
 
     function isOnResizeHandle(x, y) {
-      return x >= stickerX + stickerW - resizeHandleSize &&
-             x <= stickerX + stickerW &&
-             y >= stickerY + stickerH - resizeHandleSize &&
-             y <= stickerY + stickerH;
+      return x >= stickerX + stickerW - resizeHandleSize && x <= stickerX + stickerW && y >= stickerY + stickerH - resizeHandleSize && y <= stickerY + stickerH;
     }
 
-    canvas.addEventListener("mousedown", (e) => {
-      const mx = e.offsetX;
-      const my = e.offsetY;
-      if (isOnResizeHandle(mx, my)) {
+    function handlePointerStart(x, y) {
+      if (isOnResizeHandle(x, y)) {
         resizing = true;
-      } else if (isOnSticker(mx, my)) {
+      } else if (isOnSticker(x, y)) {
         dragging = true;
-        dragOffsetX = mx - stickerX;
-        dragOffsetY = my - stickerY;
+        dragOffsetX = x - stickerX;
+        dragOffsetY = y - stickerY;
       }
-    });
+    }
 
-    canvas.addEventListener("mousemove", (e) => {
-      const mx = e.offsetX;
-      const my = e.offsetY;
-
+    function handlePointerMove(x, y) {
       if (resizing) {
-        const newWidth = Math.max(20, mx - stickerX);
+        const newWidth = Math.max(20, x - stickerX);
         const aspectRatio = sticker.naturalWidth / sticker.naturalHeight;
         stickerW = newWidth;
         stickerH = newWidth / aspectRatio;
         draw();
       } else if (dragging) {
-        stickerX = mx - dragOffsetX;
-        stickerY = my - dragOffsetY;
+        stickerX = x - dragOffsetX;
+        stickerY = y - dragOffsetY;
         draw();
-      } else {
-        canvas.style.cursor = isOnResizeHandle(mx, my) ? "nwse-resize" :
-                              isOnSticker(mx, my) ? "move" : "default";
       }
-    });
+    }
 
-    canvas.addEventListener("mouseup", () => {
+    function stopDragging() {
       dragging = false;
       resizing = false;
+    }
+
+    // Desktop events
+    canvas.addEventListener("mousedown", e => handlePointerStart(e.offsetX, e.offsetY));
+    canvas.addEventListener("mousemove", e => handlePointerMove(e.offsetX, e.offsetY));
+    canvas.addEventListener("mouseup", stopDragging);
+    canvas.addEventListener("mouseleave", stopDragging);
+
+    // Mobile events
+    canvas.addEventListener("touchstart", e => {
+      const rect = canvas.getBoundingClientRect();
+      const touch = e.touches[0];
+      const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
+      const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
+      handlePointerStart(x, y);
+      e.preventDefault();
     });
 
-    canvas.addEventListener("mouseleave", () => {
-      dragging = false;
-      resizing = false;
+    canvas.addEventListener("touchmove", e => {
+      const rect = canvas.getBoundingClientRect();
+      const touch = e.touches[0];
+      const x = (touch.clientX - rect.left) * (canvas.width / rect.width);
+      const y = (touch.clientY - rect.top) * (canvas.height / rect.height);
+      handlePointerMove(x, y);
+      e.preventDefault();
     });
+
+    canvas.addEventListener("touchend", stopDragging);
 
     saveBtn.addEventListener("click", () => {
-      if (!backgroundImage) {
-        alert("Please upload an image first.");
-        return;
-      }
-      draw(true); // hide red square
+      if (!backgroundImage) return alert("Please upload an image first.");
+      draw(true);
       const link = document.createElement("a");
       link.download = "I POINTED.png";
       link.href = canvas.toDataURL("image/png");
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      draw(); // redraw with red handle after save
+      draw();
     });
   </script>
-
 </body>
 </html>
